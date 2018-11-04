@@ -32,8 +32,8 @@ using System.Threading.Tasks;
 
 namespace nanoFramework.Tools.VisualStudio.Extension
 {
-    [ProvideAutoLoad(UIContextGuids.NoSolution)]
-    [ProvideAutoLoad(UIContextGuids.SolutionExists)]
+    [ProvideAutoLoad(UIContextGuids.NoSolution, PackageAutoLoadFlags.BackgroundLoad)]
+    [ProvideAutoLoad(UIContextGuids.SolutionExists, PackageAutoLoadFlags.BackgroundLoad)]
     [PackageRegistration(AllowsBackgroundLoading = true, RegisterUsing = RegistrationMethod.CodeBase, UseManagedResourcesOnly = true)]
     // info that shown on extension catalog
     [Description("Visual Studio 2017 extension for nanoFramework. Enables creating C# Solutions to be deployed to a target board and provides debugging tools.")]
@@ -69,7 +69,7 @@ namespace nanoFramework.Tools.VisualStudio.Extension
         /// <summary>
         /// View model locator 
         /// </summary>
-        static internal ViewModelLocator ViewModelLocator;
+        static internal DeviceExplorerViewModel DeviceExplorerViewModel { get; private set; }
 
         /// <summary>
         /// Path for nanoFramework Extension directory
@@ -178,28 +178,28 @@ namespace nanoFramework.Tools.VisualStudio.Extension
             // Need to add the View model Locator to the application resource dictionary programmatically 
             // because at the extension level we don't have 'XAML' access to it
             // try to find if the view model locator is already in the app resources dictionary
-            if (System.Windows.Application.Current.TryFindResource("Locator") == null)
+            if (System.Windows.Application.Current.TryFindResource("DeviceExplorerViewModel") == null)
             {
                 // instantiate the view model locator...
-                ViewModelLocator = new ViewModelLocator();
+                DeviceExplorerViewModel = new DeviceExplorerViewModel();
 
                 // ... and add it there
-                System.Windows.Application.Current.Resources.Add("Locator", ViewModelLocator);
+                System.Windows.Application.Current.Resources.Add("DeviceExplorerViewModel", DeviceExplorerViewModel);
             }
 
-            SimpleIoc.Default.GetInstance<DeviceExplorerViewModel>().Package = this;
+            DeviceExplorerViewModel.Package = this;
 
             await MessageCentre.InitializeAsync(this, "nanoFramework Extension");
 
-            await DeviceExplorerCommand.InitializeAsync(this, ViewModelLocator, await GetServiceAsync(typeof(NanoDeviceCommService)) as INanoDeviceCommService);
-            DeployProvider.Initialize(this, ViewModelLocator);
+            await DeviceExplorerCommand.InitializeAsync(this, DeviceExplorerViewModel, await GetServiceAsync(typeof(NanoDeviceCommService)) as INanoDeviceCommService);
+            DeployProvider.Initialize(this, DeviceExplorerViewModel);
 
             // Enable debugger UI context
             UIContext.FromUIContextGuid(CorDebug.EngineGuid).IsActive = true;
 
             await TaskScheduler.Default;
 
-            SimpleIoc.Default.GetInstance<DeviceExplorerViewModel>().NanoDeviceCommService = await GetServiceAsync(typeof(NanoDeviceCommService)) as INanoDeviceCommService;
+            DeviceExplorerViewModel.NanoDeviceCommService = await GetServiceAsync(typeof(NanoDeviceCommService)) as INanoDeviceCommService;
 
             OutputWelcomeMessage();
 
@@ -219,11 +219,9 @@ namespace nanoFramework.Tools.VisualStudio.Extension
 
         private void OutputWelcomeMessage()
         {
-            System.Threading.Tasks.Task.Run(() => 
+            ThreadPool.QueueUserWorkItem(delegate 
             {
-                // schedule this to wait for a few seconds before doing it's thing allow VS to load
-                System.Threading.Tasks.Task.Delay(5000);
-
+                Thread.Sleep(5000);
                 // loaded 
                 MessageCentre.OutputMessage($"** nanoFramework extension v{NanoFrameworkExtensionVersion.ToString()} loaded **");
 
@@ -254,7 +252,6 @@ namespace nanoFramework.Tools.VisualStudio.Extension
 
         private int LaunchNanoDebug(uint nCmdExecOpt, IntPtr pvaIn, IntPtr pvaOut)
         {
-            int hr;
             string executable = string.Empty;
             string options = string.Empty;
 
@@ -270,6 +267,8 @@ namespace nanoFramework.Tools.VisualStudio.Extension
             ////////////////////////////////////////////////////////
             await JoinableTaskFactory.SwitchToMainThreadAsync();
             IVsDebugger4 debugger = (IVsDebugger4)GetServiceAsync(typeof(IVsDebugger));
+            Microsoft.Assumes.Present(debugger);
+
             VsDebugTargetInfo4[] debugTargets = new VsDebugTargetInfo4[1];
             debugTargets[0].dlo = (uint)DEBUG_LAUNCH_OPERATION.DLO_CreateProcess;
             debugTargets[0].bstrExe = typeof(CorDebugProcess).Assembly.Location;
@@ -286,6 +285,7 @@ namespace nanoFramework.Tools.VisualStudio.Extension
 
         int Microsoft.VisualStudio.OLE.Interop.IOleCommandTarget.Exec(ref Guid cmdGroup, uint nCmdID, uint nCmdExecOpt, IntPtr pvaIn, IntPtr pvaOut)
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             Microsoft.VisualStudio.OLE.Interop.IOleCommandTarget oleCommandTarget = (Microsoft.VisualStudio.OLE.Interop.IOleCommandTarget)GetService(typeof(Microsoft.VisualStudio.OLE.Interop.IOleCommandTarget));
 
             if (oleCommandTarget != null)
@@ -311,6 +311,7 @@ namespace nanoFramework.Tools.VisualStudio.Extension
 
         int Microsoft.VisualStudio.OLE.Interop.IOleCommandTarget.QueryStatus(ref Guid cmdGroup, uint cCmds, Microsoft.VisualStudio.OLE.Interop.OLECMD[] prgCmds, IntPtr pCmdText)
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             Microsoft.VisualStudio.OLE.Interop.IOleCommandTarget oleCommandTarget = (Microsoft.VisualStudio.OLE.Interop.IOleCommandTarget)GetService(typeof(Microsoft.VisualStudio.OLE.Interop.IOleCommandTarget));
 
             if (oleCommandTarget != null)

@@ -161,6 +161,7 @@ namespace nanoFramework.Tools.VisualStudio.Extension
         {
             get
             {
+                ThreadHelper.ThrowIfNotOnUIThread();
                 if (serviceProvider == null)
                 {
                     IOleServiceProvider oleServiceProvider = site as IOleServiceProvider;
@@ -174,11 +175,13 @@ namespace nanoFramework.Tools.VisualStudio.Extension
 
         protected Object GetService(Guid serviceGuid)
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             return SiteServiceProvider.GetService(serviceGuid);
         }
 
         protected object GetService(Type serviceType)
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             return SiteServiceProvider.GetService(serviceType);
         }
 

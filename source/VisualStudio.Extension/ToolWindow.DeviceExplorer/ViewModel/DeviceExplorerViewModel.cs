@@ -49,8 +49,6 @@ namespace nanoFramework.Tools.VisualStudio.Extension.ToolWindow.ViewModel
         public event PropertyChangingEventHandler PropertyChanging;
 #pragma warning restore 67
 
-        private bool _deviceEnumerationCompleted { get; set; }
-
         /// <summary>
         /// Sets if Device Explorer should auto-select a device when there is only a single one in the available list.
         /// </summary>
@@ -72,7 +70,16 @@ namespace nanoFramework.Tools.VisualStudio.Extension.ToolWindow.ViewModel
             }
         }
 
-        public INanoDeviceCommService NanoDeviceCommService { private get; set; }
+        private INanoDeviceCommService nanoDeviceCommService;
+        public INanoDeviceCommService NanoDeviceCommService
+        {
+            private get { return nanoDeviceCommService; }
+            set
+            {
+                nanoDeviceCommService = value;
+                nanoDeviceCommService.DebugClient.NanoFrameworkDevices.CollectionChanged += NanoFrameworkDevices_CollectionChanged;
+            }
+        }
 
         /// <summary>
         /// Initializes a new instance of the MainViewModel class.
@@ -121,77 +128,20 @@ namespace nanoFramework.Tools.VisualStudio.Extension.ToolWindow.ViewModel
 
         private void SerialDebugClient_DeviceEnumerationCompleted(object sender, EventArgs e)
         {
-            // save status
-            _deviceEnumerationCompleted = true;
-
-            SelectedTransportType = Debugger.WireProtocol.TransportType.Serial;
-
-            UpdateAvailableDevices();
+             UpdateAvailableDevices();
         }
 
-        private void UpdateAvailableDevices()
+        private async void UpdateAvailableDevices()
         {
-            switch (SelectedTransportType)
-            {
-                case Debugger.WireProtocol.TransportType.Serial:
-                    AvailableDevices = new ObservableCollection<NanoDeviceBase>(NanoDeviceCommService.DebugClient.NanoFrameworkDevices);
-                    NanoDeviceCommService.DebugClient.NanoFrameworkDevices.CollectionChanged += NanoFrameworkDevices_CollectionChanged;
-                    break;
-
-                case Debugger.WireProtocol.TransportType.Usb:
-                    //AvailableDevices = new ObservableCollection<NanoDeviceBase>(UsbDebugService.NanoFrameworkDevices);
-                    //NanoDeviceCommService.NanoFrameworkDevicesCollectionChanged += NanoDeviceCommService_NanoFrameworkDevicesCollectionChanged;
-                    break;
-
-                case Debugger.WireProtocol.TransportType.TcpIp:
-                    // TODO
-                    //await Task.Delay(2500);
-                    //    AvailableDevices = new ObservableCollection<NanoDeviceBase>();
-                    //    SelectedDevice = null;
-                    break;
-            }
-
             // handle auto-connect option
-            if (_deviceEnumerationCompleted || NanoDeviceCommService.DebugClient.IsDevicesEnumerationComplete)
+            if (NanoDeviceCommService.DebugClient.IsDevicesEnumerationComplete)
             {
-                // this auto-connect can only run after the initial device enumeration is completed
-                if (AutoSelect)
-                {
-                    // is there a single device
-                    if (AvailableDevices.Count == 1)
-                    {
-                        ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
-                        {
-                            ForceNanoDeviceSelection(AvailableDevices[0]);
-                        });
-                    }
-                }
-            }
-        }
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                AvailableDevices.Clear();
 
-        private void NanoFrameworkDevices_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
-        {
-            // handle this according to the selected device type 
-            switch (SelectedTransportType)
-            {
-                //case TransportType.Usb:
-                //    AvailableDevices = new ObservableCollection<NanoDeviceBase>(UsbDebugService.NanoFrameworkDevices);
-                //    break;
+                foreach (var item in NanoDeviceCommService.DebugClient.NanoFrameworkDevices)
+                    AvailableDevices.Add(item);
 
-                case Debugger.WireProtocol.TransportType.Serial:
-                    AvailableDevices = new ObservableCollection<NanoDeviceBase>(NanoDeviceCommService.DebugClient.NanoFrameworkDevices);
-                    break;
-
-                default:
-                    // shouldn't get here...
-                    break;
-            }
-
-            MessengerInstance.Send(new NotificationMessage(""), MessagingTokens.NanoDevicesCollectionHasChanged);
-
-            // handle auto-select option
-            if (_deviceEnumerationCompleted || NanoDeviceCommService.DebugClient.IsDevicesEnumerationComplete)
-            {
                 // reselect a specific device has higher priority than auto-select
                 if (DeviceToReSelect != null)
                 {
@@ -199,10 +149,7 @@ namespace nanoFramework.Tools.VisualStudio.Extension.ToolWindow.ViewModel
                     if (deviceToReSelect != null)
                     {
                         // device seems to be back online, select it
-                        ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
-                        {
-                            ForceNanoDeviceSelection(deviceToReSelect);
-                        });
+                        ForceNanoDeviceSelection(deviceToReSelect);
 
                         // clear device to reselect
                         DeviceToReSelect = null;
@@ -214,10 +161,7 @@ namespace nanoFramework.Tools.VisualStudio.Extension.ToolWindow.ViewModel
                     // is there a single device
                     if (AvailableDevices.Count == 1)
                     {
-                        ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
-                        {
-                            ForceNanoDeviceSelection(AvailableDevices[0]);
-                        });
+                          ForceNanoDeviceSelection(AvailableDevices[0]);
                     }
                     else
                     {
@@ -225,14 +169,18 @@ namespace nanoFramework.Tools.VisualStudio.Extension.ToolWindow.ViewModel
                         if (SelectedDevice != null)
                         {
                             // maintain selection
-                            ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
-                            {
-                                ForceNanoDeviceSelection(AvailableDevices.FirstOrDefault(d => d.Description == SelectedDevice.Description));
-                            });
+                            ForceNanoDeviceSelection(AvailableDevices.FirstOrDefault(d => d.Description == SelectedDevice.Description));
                         }
                     }
                 }
             }
+        }
+
+        private void NanoFrameworkDevices_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        {
+            MessengerInstance.Send(new NotificationMessage(""), MessagingTokens.NanoDevicesCollectionHasChanged);
+
+            UpdateAvailableDevices();
         }
 
         private void ForceNanoDeviceSelection(NanoDeviceBase nanoDevice)
@@ -240,8 +188,7 @@ namespace nanoFramework.Tools.VisualStudio.Extension.ToolWindow.ViewModel
             // select the device
             SelectedDevice = nanoDevice;
 
-            // request forced selection of device in UI
-            MessengerInstance.Send(new NotificationMessage(""), MessagingTokens.ForceSelectionOfNanoDevice);
+            ForceNanoDeviceSelection();
         }
 
         public void  ForceNanoDeviceSelection()
@@ -265,37 +212,11 @@ namespace nanoFramework.Tools.VisualStudio.Extension.ToolWindow.ViewModel
             MessengerInstance.Send(new NotificationMessage(""), MessagingTokens.SelectedNanoDeviceHasChanged);
         }
 
-        public void RebootSelectedDevice()
-        {
-            // this is only possible to perform if there is a device connected 
-            if (SelectedDevice != null)
-            {
-                // save previous device
-                PreviousSelectedDeviceDescription = DeviceToReSelect;
-
-                // reboot the device
-                ThreadHelper.JoinableTaskFactory.Run(async () =>
-                {
-                    // remove device selection
-                    // reset property to force that device capabilities are retrieved on next connection
-                    LastDeviceConnectedHash = 0;
-
-                    SelectedDevice.DebugEngine.RebootDevice(RebootOptions.NormalReboot);
-                });
-            }
-        }
-
 
         #region Transport
 
-        public List<Debugger.WireProtocol.TransportType> AvailableTransportTypes { get; set; }
-
-        public Debugger.WireProtocol.TransportType SelectedTransportType { get; set; }
-
-        public void OnSelectedTransportTypeChanged()
-        {
-            UpdateAvailableDevices();
-        }
+        //Hardcoded until new TransportTypes supported
+        public Debugger.WireProtocol.TransportType SelectedTransportType => Debugger.WireProtocol.TransportType.Serial;
 
         #endregion
 

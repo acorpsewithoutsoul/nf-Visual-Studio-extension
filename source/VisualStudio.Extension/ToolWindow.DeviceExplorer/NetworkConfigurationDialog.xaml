@@ -26,7 +26,7 @@
     </vsp:DialogWindow.Resources>
 
     <vsp:DialogWindow.DataContext>
-        <Binding Path="DeviceExplorer" Source="{StaticResource Locator}" NotifyOnSourceUpdated="True" NotifyOnTargetUpdated="True"/>
+        <Binding Path="DeviceExplorer" Source="{StaticResource DeviceExplorerViewModel}" NotifyOnSourceUpdated="True" NotifyOnTargetUpdated="True"/>
     </vsp:DialogWindow.DataContext>
 
     <Grid Margin="0,0,0,4">

@@ -4,6 +4,7 @@
 // See LICENSE file in the project root for full license information.
 //
 
+using Microsoft;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
@@ -28,13 +29,15 @@ namespace nanoFramework.Tools.VisualStudio.Extension
             // seems OK to call these API here without switching to the main thread as we are just getting the service not actually accessing the output window
 #pragma warning disable VSTHRD010
             _outputWindow = await package.GetServiceAsync(typeof(SVsOutputWindow)) as IVsOutputWindow;
+            Assumes.Present(_outputWindow);
             _statusBar = await package.GetServiceAsync(typeof(SVsStatusbar)) as IVsStatusbar;
+            Assumes.Present(_statusBar);
 #pragma warning restore VSTHRD010
 
             _paneName = name;
 
-            await ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
-            {
+            //await ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
+            //{
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
                 // get VS debug pane
@@ -45,7 +48,7 @@ namespace nanoFramework.Tools.VisualStudio.Extension
                 tempId = s_DeploymentMessagesPaneGuid;
                 _outputWindow.CreatePane(ref tempId, _paneName, 0, 1);
                 _outputWindow.GetPane(ref tempId, out _nanoFrameworkMessagesPane);
-            });
+            //});
         }
 
         /// <summary>
@@ -145,8 +148,7 @@ namespace nanoFramework.Tools.VisualStudio.Extension
 
 
                 // Make sure the status bar is not frozen  
-                int frozen;
-                _statusBar.IsFrozen(out frozen);
+                _statusBar.IsFrozen(out int frozen);
 
                 if (frozen != 0)
                 {
@@ -172,8 +174,7 @@ namespace nanoFramework.Tools.VisualStudio.Extension
                 object icon = (short)Constants.SBAI_General;
 
                 // Make sure the status bar is not frozen  
-                int frozen;
-                _statusBar.IsFrozen(out frozen);
+                _statusBar.IsFrozen(out int frozen);
 
                 if (frozen != 0)
                 {

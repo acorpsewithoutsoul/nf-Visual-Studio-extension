@@ -61,9 +61,6 @@
     <PlatformTarget>x86</PlatformTarget>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="..\Tools.BuildTasks\ProcessResourceFiles.cs">
-      <Link>ResXFileCodeGenerator\ProcessResourceFiles.cs</Link>
-    </Compile>
     <Compile Include="Converters\AuthenticationTypeConverter.cs" />
     <Compile Include="Converters\EncryptionTypeConverter.cs" />
     <Compile Include="Converters\NetworkInterfaceTypeConverter.cs" />
@@ -154,7 +151,6 @@
     <Compile Include="ToolWindow.DeviceExplorer\ViewModel\DesignDataService.cs" />
     <Compile Include="ToolWindow.DeviceExplorer\ViewModel\DeviceExplorerViewModel.cs" />
     <Compile Include="ToolWindow.DeviceExplorer\ViewModel\IDataService.cs" />
-    <Compile Include="ToolWindow.DeviceExplorer\ViewModel\ViewModelLocator.cs" />
     <Compile Include="Utilities\EnumToItemsSource.cs" />
     <Compile Include="Utilities\ReferenceCrawler.cs" />
   </ItemGroup>
@@ -396,9 +392,6 @@
     <Reference Include="Microsoft.Win32.Primitives, Version=4.0.2.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\packages\Microsoft.Win32.Primitives.4.3.0\lib\net46\Microsoft.Win32.Primitives.dll</HintPath>
     </Reference>
-    <Reference Include="nanoFramework.Tools.Debugger, Version=0.0.0.0, Culture=neutral, PublicKeyToken=e520bb6b53f04733, processorArchitecture=MSIL">
-      <HintPath>..\packages\nanoFramework.Tools.Debugger.Net.1.0.1\lib\net46\nanoFramework.Tools.Debugger.dll</HintPath>
-    </Reference>
     <Reference Include="Newtonsoft.Json, Version=11.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>..\packages\Newtonsoft.Json.11.0.2\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
@@ -550,6 +543,10 @@
       <Project>{101d57ad-d22f-4905-a992-de15e723f164}</Project>
       <Name>nanoFramework.Tools.DebugLibrary.Net</Name>
     </ProjectReference>-->
+    <ProjectReference Include="..\..\nf-debugger\source\nanoFramework.Tools.DebugLibrary.Net\nanoFramework.Tools.DebugLibrary.Net.csproj">
+      <Project>{101d57ad-d22f-4905-a992-de15e723f164}</Project>
+      <Name>nanoFramework.Tools.DebugLibrary.Net</Name>
+    </ProjectReference>
     <ProjectReference Include="..\CSharp.AssemblyInfoTemplate\CSharp.AssemblyInfoTemplate.csproj">
       <Project>{EF2FEEDF-2D22-49F7-A51C-F6D4155A7932}</Project>
       <Name>CSharp.AssemblyInfoTemplate</Name>
@@ -581,13 +578,6 @@
     <ProjectReference Include="..\Tools.BuildTasks\Tools.BuildTasks.csproj">
       <Project>{ce0631f2-731d-4a48-b927-f13f6b2fb055}</Project>
       <Name>Tools.BuildTasks</Name>
-      <InstallRoot>MSBuild</InstallRoot>
-      <VSIXSubPath>nanoFramework\v1.0\</VSIXSubPath>
-      <IncludeOutputGroupsInVSIX>BuiltProjectOutputGroup</IncludeOutputGroupsInVSIX>
-    </ProjectReference>
-    <ProjectReference Include="..\Tools.MetaDataProcessor\MetaDataProcessor.vcxproj">
-      <Project>{80209a7e-b9f0-4143-bcd1-b1891236a3cf}</Project>
-      <Name>Tools.MetaDataProcessor</Name>
       <InstallRoot>MSBuild</InstallRoot>
       <VSIXSubPath>nanoFramework\v1.0\</VSIXSubPath>
       <IncludeOutputGroupsInVSIX>BuiltProjectOutputGroup</IncludeOutputGroupsInVSIX>

@@ -34,7 +34,7 @@ namespace nanoFramework.Tools.VisualStudio.Extension
         // timeout when performing a deploy operation
         private const int _timeoutMiliseconds = 500;
 
-        private static ViewModelLocator _viewModelLocator;
+        private static DeviceExplorerViewModel _deviceExplorerViewModel;
 
         private static Package _package;
 
@@ -54,16 +54,16 @@ namespace nanoFramework.Tools.VisualStudio.Extension
         [Import]
         IProjectService ProjectService { get; set; }
 
-        public static void Initialize(AsyncPackage package, ViewModelLocator vmLocator)
+        public static void Initialize(AsyncPackage package, DeviceExplorerViewModel deviceExplorerViewModel)
         {
             _package = package;
-            _viewModelLocator = vmLocator;
+            _deviceExplorerViewModel = deviceExplorerViewModel;
         }
 
         public async Task DeployAsync(CancellationToken cancellationToken, TextWriter outputPaneWriter)
         {
             // just in case....
-            if ((_viewModelLocator?.DeviceExplorer.SelectedDevice == null))
+            if ((_deviceExplorerViewModel?.SelectedDevice == null))
             {
                 // can't debug
                 // throw exception to signal deployment failure
@@ -151,7 +151,7 @@ namespace nanoFramework.Tools.VisualStudio.Extension
                         if (device.DeviceInfo.NativeAssemblies.Count == 0)
                         {
                             // there are no assemblies deployed?!
-                            throw new DeploymentException($"Couldn't find any native assemblies deployed in {_viewModelLocator.DeviceExplorer.SelectedDevice.Description}! If the situation persists reboot the device.");
+                            throw new DeploymentException($"Couldn't find any native assemblies deployed in {_deviceExplorerViewModel.SelectedDevice.Description}! If the situation persists reboot the device.");
                         }
 
                         // For a known project output assembly path, this shall contain the corresponding
@@ -250,7 +250,7 @@ namespace nanoFramework.Tools.VisualStudio.Extension
                         await outputPaneWriter.WriteLineAsync("Deployment successful.");
 
                         // reset the hash for the connected device so the deployment information can be refreshed
-                        _viewModelLocator.DeviceExplorer.LastDeviceConnectedHash = 0;
+                        _deviceExplorerViewModel.LastDeviceConnectedHash = 0;
                     }
                     else
                     {
@@ -262,7 +262,7 @@ namespace nanoFramework.Tools.VisualStudio.Extension
                 else
                 {
                     // throw exception to signal deployment failure
-                    throw new DeploymentException($"{_viewModelLocator.DeviceExplorer.SelectedDevice.Description} is not responding. Please retry the deployment. If the situation persists reboot the device.");
+                    throw new DeploymentException($"{_deviceExplorerViewModel.SelectedDevice.Description} is not responding. Please retry the deployment. If the situation persists reboot the device.");
                 }
             }
             catch (DeploymentException ex)
