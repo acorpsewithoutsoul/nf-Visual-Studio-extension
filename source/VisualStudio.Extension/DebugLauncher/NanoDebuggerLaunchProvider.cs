@@ -41,8 +41,8 @@ namespace nanoFramework.Tools.VisualStudio.Extension
         public override async Task<IReadOnlyList<IDebugLaunchSettings>> QueryDebugTargetsAsync(DebugLaunchOptions launchOptions)
         {
             
-            var deployDeviceName = NanoFrameworkPackage.DeviceExplorerViewModel.SelectedDevice.Description;
-            var portName = NanoFrameworkPackage.DeviceExplorerViewModel.SelectedTransportType.ToString();
+            var deployDeviceName = NanoFrameworkPackage.DeviceExplorerControlViewModel.SelectedDevice.Description;
+            var portName = NanoFrameworkPackage.DeviceExplorerControlViewModel.SelectedTransportType.ToString();
 
             string commandLine = await GetCommandLineForLaunchAsync();
             commandLine = string.Format("{0} \"{1}{2}\"", commandLine, CorDebugProcess.DeployDeviceName, deployDeviceName);

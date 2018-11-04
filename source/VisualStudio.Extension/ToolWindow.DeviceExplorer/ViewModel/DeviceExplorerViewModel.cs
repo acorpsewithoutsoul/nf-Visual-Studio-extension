@@ -35,14 +35,13 @@ namespace nanoFramework.Tools.VisualStudio.Extension.ToolWindow.ViewModel
     /// See http://www.galasoft.ch/mvvm
     /// </para>
     /// </summary>
-    public class DeviceExplorerViewModel : ViewModelBase, INotifyPropertyChanging, INotifyPropertyChanged
+    public class DeviceExplorerControlViewModel : ViewModelBase, INotifyPropertyChanging, INotifyPropertyChanged
     {
         public const int WRITE_TO_OUTPUT_TOKEN = 1;
         public const int SELECTED_NULL_TOKEN = 2;
 
         // for serial devices we wait 10 seconds for the device to be available again
         private const int SerialDeviceReconnectMaximumAttempts = 4 * 10;
-        private DeviceConfiguration.NetworkConfigurationProperties _deviceNetworkConfiguration;
 
         // keep this here otherwise Fody won't be able to properly implement INotifyPropertyChanging
 #pragma warning disable 67
@@ -53,22 +52,6 @@ namespace nanoFramework.Tools.VisualStudio.Extension.ToolWindow.ViewModel
         /// Sets if Device Explorer should auto-select a device when there is only a single one in the available list.
         /// </summary>
         public bool AutoSelect { get; set; } = true;
-
-        /// <summary>
-        /// VS Package.
-        /// </summary>
-        public Package Package { get; set; }
-
-        /// <summary>
-        /// Gets the service provider from the owner package.
-        /// </summary>
-        private IServiceProvider _serviceProvider
-        {
-            get
-            {
-                return Package;
-            }
-        }
 
         private INanoDeviceCommService nanoDeviceCommService;
         public INanoDeviceCommService NanoDeviceCommService
@@ -84,7 +67,7 @@ namespace nanoFramework.Tools.VisualStudio.Extension.ToolWindow.ViewModel
         /// <summary>
         /// Initializes a new instance of the MainViewModel class.
         /// </summary>
-        public DeviceExplorerViewModel()
+        public DeviceExplorerControlViewModel()
         {
             if (IsInDesignMode)
             {
@@ -126,12 +109,12 @@ namespace nanoFramework.Tools.VisualStudio.Extension.ToolWindow.ViewModel
             MessageCentre.InternalErrorMessage(e.EventText);
         }
 
-        private void SerialDebugClient_DeviceEnumerationCompleted(object sender, EventArgs e)
+        private async void SerialDebugClient_DeviceEnumerationCompleted(object sender, EventArgs e)
         {
-             UpdateAvailableDevices();
+             await UpdateAvailableDevicesAsync();
         }
 
-        private async void UpdateAvailableDevices()
+        private async Task UpdateAvailableDevicesAsync()
         {
             // handle auto-connect option
             if (NanoDeviceCommService.DebugClient.IsDevicesEnumerationComplete)
@@ -176,11 +159,11 @@ namespace nanoFramework.Tools.VisualStudio.Extension.ToolWindow.ViewModel
             }
         }
 
-        private void NanoFrameworkDevices_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        private async void NanoFrameworkDevices_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
         {
             MessengerInstance.Send(new NotificationMessage(""), MessagingTokens.NanoDevicesCollectionHasChanged);
 
-            UpdateAvailableDevices();
+            await UpdateAvailableDevicesAsync();
         }
 
         private void ForceNanoDeviceSelection(NanoDeviceBase nanoDevice)

@@ -23,16 +23,16 @@ namespace nanoFramework.Tools.VisualStudio.Extension
     /// </para>
     /// </remarks>
     [Guid("65ff0124-880b-4bf4-9441-08a10b4e4c06")]
-    public class DeviceExplorer : ToolWindowPane
+    public class DeviceExplorerWindowPane : ToolWindowPane
     {
 
         internal DeviceExplorerControl control;
 
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="DeviceExplorer"/> class.
+        /// Initializes a new instance of the <see cref="DeviceExplorerWindowPane"/> class.
         /// </summary>
-        public DeviceExplorer() : base(null)
+        public DeviceExplorerWindowPane() : base(null)
         {
             Caption = "Device Explorer - Home";
 
@@ -45,7 +45,7 @@ namespace nanoFramework.Tools.VisualStudio.Extension
             BitmapImageMoniker = NanoFrameworkMonikers.NanoFramework;
 
             // set the toolbar for this control
-            ToolBar = new CommandID(new Guid(DeviceExplorerCommand.guidDeviceExplorerCmdSet), DeviceExplorerCommand.DeviceExplorerToolbarID);
+            ToolBar = new CommandID(new Guid(DeviceExplorerToolbar.guidDeviceExplorerCmdSet), DeviceExplorerToolbar.DeviceExplorerToolbarID);
             ToolBarLocation = (int)VSTWT_LOCATION.VSTWT_TOP;
         }
     }

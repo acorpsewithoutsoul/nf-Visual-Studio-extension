@@ -20,7 +20,7 @@ namespace nanoFramework.Tools.VisualStudio.Extension
     /// <summary>
     /// Command handler
     /// </summary>
-    internal sealed class DeviceExplorerCommand
+    internal sealed class DeviceExplorerToolbar
     {
         /// <summary>
         /// Command ID.
@@ -32,20 +32,14 @@ namespace nanoFramework.Tools.VisualStudio.Extension
         /// </summary>
         public static readonly Guid CommandSet = new Guid("c975c4ec-f229-45dd-b681-e42815641675");
 
-        private DeviceExplorerViewModel DeviceExplorerViewModel;
+        private DeviceExplorerControlViewModel _deviceExplorerControlViewModel;
 
         private static OleMenuCommandService _commandService;
 
         /// <summary>
         /// VS Package that provides this command, not null.
         /// </summary>
-        private readonly Package package;
-
-        //private DeviceExplorer window;
-
-        //private Application windowApp;
-
-        //uint _statusBarCookie = 0;
+        private readonly Package _package;
 
         // command set Guids
         public const string guidDeviceExplorerCmdSet = "DF641D51-1E8C-48E4-B549-CC6BCA9BDE19";  // this GUID is coming from the .vsct file  
@@ -63,17 +57,17 @@ namespace nanoFramework.Tools.VisualStudio.Extension
         public const int ShowInternalErrorsCommandID = 0x0300;
 
 
-        INanoDeviceCommService NanoDeviceCommService;
-        private static DeviceExplorerCommand s_instance;
+        private INanoDeviceCommService _nanoDeviceCommService;
+        private static DeviceExplorerToolbar s_instance;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="DeviceExplorerCommand"/> class.
+        /// Initializes a new instance of the <see cref="DeviceExplorerToolbar"/> class.
         /// Adds our command handlers for menu (commands must exist in the command table file)
         /// </summary>
         /// <param name="package">Owner package, not null.</param>
-        private DeviceExplorerCommand(Package package)
+        private DeviceExplorerToolbar(Package package)
         {
-            this.package = package ?? throw new ArgumentNullException("Package can't be null.");
+            this._package = package ?? throw new ArgumentNullException("Package can't be null.");
 
             _commandService = ServiceProvider.GetService(typeof(IMenuCommandService)) as OleMenuCommandService;
             Microsoft.Assumes.Present(_commandService);
@@ -90,7 +84,7 @@ namespace nanoFramework.Tools.VisualStudio.Extension
         {
             get
             {
-                return package;
+                return _package;
             }
         }
 
@@ -98,14 +92,12 @@ namespace nanoFramework.Tools.VisualStudio.Extension
         /// Initializes the singleton instance of the command.
         /// </summary>
         /// <param name="package">Owner package, not null.</param>
-        public static async Task InitializeAsync(AsyncPackage package, DeviceExplorerViewModel deviceExplorerViewModel, INanoDeviceCommService nanoDeviceCommService)
+        public static async Task InitializeAsync(AsyncPackage package, DeviceExplorerControlViewModel deviceExplorerControlViewModel, INanoDeviceCommService nanoDeviceCommService)
         {
-            s_instance = new DeviceExplorerCommand(package);
+            s_instance = new DeviceExplorerToolbar(package);
 
-            s_instance.DeviceExplorerViewModel = deviceExplorerViewModel;
-            s_instance.NanoDeviceCommService = nanoDeviceCommService;
-
-            //windowApp = ();
+            s_instance._deviceExplorerControlViewModel = deviceExplorerControlViewModel;
+            s_instance._nanoDeviceCommService = nanoDeviceCommService;
 
             // need to switch to the main thread to initialize the command handlers
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
@@ -113,8 +105,8 @@ namespace nanoFramework.Tools.VisualStudio.Extension
             s_instance.CreateToolbarHandlers();
 
             // setup message listeners to be notified of events occurring in the View Model
-            Messenger.Default.Register<NotificationMessage>(s_instance, DeviceExplorerViewModel.MessagingTokens.SelectedNanoDeviceHasChanged, (message) => s_instance.SelectedNanoDeviceHasChangedHandler());
-            Messenger.Default.Register<NotificationMessage>(s_instance, DeviceExplorerViewModel.MessagingTokens.NanoDevicesCollectionHasChanged, (message) => s_instance.NanoDevicesCollectionChangedHandler());
+            Messenger.Default.Register<NotificationMessage>(s_instance, DeviceExplorerControlViewModel.MessagingTokens.SelectedNanoDeviceHasChanged, (message) => s_instance.SelectedNanoDeviceHasChangedHandler());
+            Messenger.Default.Register<NotificationMessage>(s_instance, DeviceExplorerControlViewModel.MessagingTokens.NanoDevicesCollectionHasChanged, (message) => s_instance.NanoDevicesCollectionChangedHandler());
         }
 
         private void CreateToolbarHandlers()
@@ -128,48 +120,42 @@ namespace nanoFramework.Tools.VisualStudio.Extension
 
             // PingCommand
             toolbarButtonCommandId = GenerateCommandID(PingDeviceCommandID);
-            menuItem = new MenuCommand(new EventHandler(
-                PingDeviceCommandHandler), toolbarButtonCommandId);
+            menuItem = new MenuCommand(PingDeviceCommandHandler, toolbarButtonCommandId);
             menuItem.Enabled = false;
             menuItem.Visible = true;
             menuCommandService.AddCommand(menuItem);
 
             // DeviceCapabilities
             toolbarButtonCommandId = GenerateCommandID(DeviceCapabilitiesID);
-            menuItem = new MenuCommand(new EventHandler(
-                DeviceCapabilitiesCommandHandler), toolbarButtonCommandId);
+            menuItem = new MenuCommand(DeviceCapabilitiesCommandHandler, toolbarButtonCommandId);
             menuItem.Enabled = false;
             menuItem.Visible = true;
             menuCommandService.AddCommand(menuItem);
 
             // DeviceErase
             toolbarButtonCommandId = GenerateCommandID(DeviceEraseID);
-            menuItem = new MenuCommand(new EventHandler(
-                DeviceEraseCommandHandler), toolbarButtonCommandId);
+            menuItem = new MenuCommand(DeviceEraseCommandHandler, toolbarButtonCommandId);
             menuItem.Enabled = false;
             menuItem.Visible = true;
             menuCommandService.AddCommand(menuItem);
 
             // Reboot
             toolbarButtonCommandId = GenerateCommandID(RebootID);
-            menuItem = new MenuCommand(new EventHandler(
-                RebootCommandHandler), toolbarButtonCommandId);
+            menuItem = new MenuCommand(RebootCommandHandler, toolbarButtonCommandId);
             menuItem.Enabled = false;
             menuItem.Visible = true;
             menuCommandService.AddCommand(menuItem);
 
             // NetworkConfig
             toolbarButtonCommandId = GenerateCommandID(NetworkConfigID);
-            menuItem = new MenuCommand(new EventHandler(
-                NetworkConfigCommandHandler), toolbarButtonCommandId);
+            menuItem = new MenuCommand(NetworkConfigCommandHandler, toolbarButtonCommandId);
             menuItem.Enabled = false;
             menuItem.Visible = true;
             menuCommandService.AddCommand(menuItem);
 
             // Show Internal Errors
             toolbarButtonCommandId = GenerateCommandID(ShowInternalErrorsCommandID);
-            menuItem = new MenuCommand(new EventHandler(
-                ShowInternalErrorsCommandHandler), toolbarButtonCommandId);
+            menuItem = new MenuCommand(ShowInternalErrorsCommandHandler, toolbarButtonCommandId);
             menuItem.Enabled = true;
             menuItem.Visible = true;
             // can't set the checked status here because the service provider of the preferences persistence is not available at this time
@@ -189,8 +175,8 @@ namespace nanoFramework.Tools.VisualStudio.Extension
             // Get the instance number 0 of this tool window. This window is single instance so this instance
             // is actually the only one.
             // The last flag is set to true so that if the tool window does not exists it will be created.
-            ToolWindowPane window = package.FindToolWindow(typeof(DeviceExplorer), 0, true);
-            if ((null == window) || (null == window.Frame))
+            ToolWindowPane window = _package.FindToolWindow(typeof(DeviceExplorerWindowPane), 0, true);
+            if ((window == null) || (window.Frame == null))
             {
                 throw new NotSupportedException("Cannot create nanoFramework Device Explorer tool window.");
             }
@@ -215,42 +201,42 @@ namespace nanoFramework.Tools.VisualStudio.Extension
             // yield to give the UI thread a chance to respond to user input
             await Task.Yield();
 
-            MessageCentre.StartProgressMessage($"Pinging {DeviceExplorerViewModel.SelectedDevice.Description}...");
+            MessageCentre.StartProgressMessage($"Pinging {_deviceExplorerControlViewModel.SelectedDevice.Description}...");
             try
             {
                 // disable the button
                 (sender as MenuCommand).Enabled = false;
 
                 // make sure this device is showing as selected in Device Explorer tree view
-                DeviceExplorerViewModel.ForceNanoDeviceSelection();
+                _deviceExplorerControlViewModel.ForceNanoDeviceSelection();
 
                 // check if debugger engine exists
-                if (NanoDeviceCommService.Device.DebugEngine == null)
+                if (_nanoDeviceCommService.Device.DebugEngine == null)
                 {
-                    NanoDeviceCommService.Device.CreateDebugEngine();
+                    _nanoDeviceCommService.Device.CreateDebugEngine();
                 }
 
                 // connect to the device
-                if (await NanoDeviceCommService.Device.DebugEngine.ConnectAsync(5000))
+                if (await _nanoDeviceCommService.Device.DebugEngine.ConnectAsync(5000))
                 {
                     // ping device
-                    var connection = NanoDeviceCommService.Device.Ping();
+                    var connection = _nanoDeviceCommService.Device.Ping();
 
-                    switch (DeviceExplorerViewModel.SelectedDevice.DebugEngine.ConnectionSource)
+                    switch (_deviceExplorerControlViewModel.SelectedDevice.DebugEngine.ConnectionSource)
                     {
                         case Tools.Debugger.WireProtocol.ConnectionSource.Unknown:
-                            MessageCentre.OutputMessage($"No reply from {DeviceExplorerViewModel.SelectedDevice.Description}");
+                            MessageCentre.OutputMessage($"No reply from {_deviceExplorerControlViewModel.SelectedDevice.Description}");
                             break;
 
                         case Tools.Debugger.WireProtocol.ConnectionSource.nanoBooter:
                         case Tools.Debugger.WireProtocol.ConnectionSource.nanoCLR:
-                            MessageCentre.OutputMessage($"{DeviceExplorerViewModel.SelectedDevice.Description} is active running {DeviceExplorerViewModel.SelectedDevice.DebugEngine.ConnectionSource.ToString()}");
+                            MessageCentre.OutputMessage($"{_deviceExplorerControlViewModel.SelectedDevice.Description} is active running {_deviceExplorerControlViewModel.SelectedDevice.DebugEngine.ConnectionSource.ToString()}");
                             break;
                     }
                 }
                 else
                 {
-                    MessageCentre.OutputMessage($"{DeviceExplorerViewModel.SelectedDevice.Description} is not responding, please reboot the device.");
+                    MessageCentre.OutputMessage($"{_deviceExplorerControlViewModel.SelectedDevice.Description} is not responding, please reboot the device.");
                 }
             }
             catch (Exception)
@@ -279,7 +265,7 @@ namespace nanoFramework.Tools.VisualStudio.Extension
             // yield to give the UI thread a chance to respond to user input
             await Task.Yield();
 
-            MessageCentre.StartProgressMessage($"Querying {DeviceExplorerViewModel.SelectedDevice.Description} capabilities...");
+            MessageCentre.StartProgressMessage($"Querying {_deviceExplorerControlViewModel.SelectedDevice.Description} capabilities...");
 
             try
             {
@@ -287,50 +273,50 @@ namespace nanoFramework.Tools.VisualStudio.Extension
                 (sender as MenuCommand).Enabled = false;
 
                 // make sure this device is showing as selected in Device Explorer tree view
-                DeviceExplorerViewModel.ForceNanoDeviceSelection();
+                _deviceExplorerControlViewModel.ForceNanoDeviceSelection();
 
                 // only query device if it's different 
-                if (DeviceExplorerViewModel.SelectedDevice.Description.GetHashCode() != DeviceExplorerViewModel.LastDeviceConnectedHash)
+                if (_deviceExplorerControlViewModel.SelectedDevice.Description.GetHashCode() != _deviceExplorerControlViewModel.LastDeviceConnectedHash)
                 {
                     // keep device description hash code to avoid get info twice
-                    DeviceExplorerViewModel.LastDeviceConnectedHash = DeviceExplorerViewModel.SelectedDevice.Description.GetHashCode();
+                    _deviceExplorerControlViewModel.LastDeviceConnectedHash = _deviceExplorerControlViewModel.SelectedDevice.Description.GetHashCode();
 
                     // check if debugger engine exists
-                    if (NanoDeviceCommService.Device.DebugEngine == null)
+                    if (_nanoDeviceCommService.Device.DebugEngine == null)
                     {
-                        NanoDeviceCommService.Device.CreateDebugEngine();
+                        _nanoDeviceCommService.Device.CreateDebugEngine();
                     }
 
                     // connect to the device
-                    if (await NanoDeviceCommService.Device.DebugEngine.ConnectAsync(5000))
+                    if (await _nanoDeviceCommService.Device.DebugEngine.ConnectAsync(5000))
                     {
                         try
                         {
                             // get device info
-                            var deviceInfo = NanoDeviceCommService.Device.GetDeviceInfo(true);
-                            var memoryMap = NanoDeviceCommService.Device.DebugEngine.GetMemoryMap();
-                            var flashMap = NanoDeviceCommService.Device.DebugEngine.GetFlashSectorMap();
-                            var deploymentMap = NanoDeviceCommService.Device.DebugEngine.GetDeploymentMap();
+                            var deviceInfo = _nanoDeviceCommService.Device.GetDeviceInfo(true);
+                            var memoryMap = _nanoDeviceCommService.Device.DebugEngine.GetMemoryMap();
+                            var flashMap = _nanoDeviceCommService.Device.DebugEngine.GetFlashSectorMap();
+                            var deploymentMap = _nanoDeviceCommService.Device.DebugEngine.GetDeploymentMap();
 
                             // we have to have a valid device info
                             if (deviceInfo.Valid)
                             {
 
                                 // load view model properties for maps
-                                DeviceExplorerViewModel.DeviceMemoryMap = new StringBuilder(memoryMap?.ToStringForOutput() ?? "Empty");
-                                DeviceExplorerViewModel.DeviceFlashSectorMap = new StringBuilder(flashMap?.ToStringForOutput() ?? "Empty");
-                                DeviceExplorerViewModel.DeviceDeploymentMap = new StringBuilder(deploymentMap?.ToStringForOutput() ?? "Empty");
+                                _deviceExplorerControlViewModel.DeviceMemoryMap = new StringBuilder(memoryMap?.ToStringForOutput() ?? "Empty");
+                                _deviceExplorerControlViewModel.DeviceFlashSectorMap = new StringBuilder(flashMap?.ToStringForOutput() ?? "Empty");
+                                _deviceExplorerControlViewModel.DeviceDeploymentMap = new StringBuilder(deploymentMap?.ToStringForOutput() ?? "Empty");
 
                                 // load view model property for system
-                                DeviceExplorerViewModel.DeviceSystemInfo = new StringBuilder(deviceInfo?.ToString() ?? "Empty");
+                                _deviceExplorerControlViewModel.DeviceSystemInfo = new StringBuilder(deviceInfo?.ToString() ?? "Empty");
                             }
                             else
                             {
                                 // reset property to force that device capabilities are retrieved on next connection
-                                DeviceExplorerViewModel.LastDeviceConnectedHash = 0;
+                                _deviceExplorerControlViewModel.LastDeviceConnectedHash = 0;
 
                                 // report issue to user
-                                MessageCentre.OutputMessage($"Error retrieving device information from { DeviceExplorerViewModel.SelectedDevice.Description}. Please reconnect device.");
+                                MessageCentre.OutputMessage($"Error retrieving device information from { _deviceExplorerControlViewModel.SelectedDevice.Description}. Please reconnect device.");
 
                                 return;
                             }
@@ -338,10 +324,10 @@ namespace nanoFramework.Tools.VisualStudio.Extension
                         catch
                         {
                             // reset property to force that device capabilities are retrieved on next connection
-                            DeviceExplorerViewModel.LastDeviceConnectedHash = 0;
+                            _deviceExplorerControlViewModel.LastDeviceConnectedHash = 0;
 
                             // report issue to user
-                            MessageCentre.OutputMessage($"Error retrieving device information from { DeviceExplorerViewModel.SelectedDevice.Description}. Please reconnect device.");
+                            MessageCentre.OutputMessage($"Error retrieving device information from { _deviceExplorerControlViewModel.SelectedDevice.Description}. Please reconnect device.");
 
                             return;
                         }
@@ -349,9 +335,9 @@ namespace nanoFramework.Tools.VisualStudio.Extension
                     else
                     {
                         // reset property to force that device capabilities are retrieved on next connection
-                        DeviceExplorerViewModel.LastDeviceConnectedHash = 0;
+                        _deviceExplorerControlViewModel.LastDeviceConnectedHash = 0;
 
-                        MessageCentre.OutputMessage($"{DeviceExplorerViewModel.SelectedDevice.Description} is not responding, please reboot the device.");
+                        MessageCentre.OutputMessage($"{_deviceExplorerControlViewModel.SelectedDevice.Description} is not responding, please reboot the device.");
 
                         return;
                     }
@@ -360,26 +346,26 @@ namespace nanoFramework.Tools.VisualStudio.Extension
                 MessageCentre.OutputMessage(string.Empty);
                 MessageCentre.OutputMessage(string.Empty);
                 MessageCentre.OutputMessage("System Information");
-                MessageCentre.OutputMessage(DeviceExplorerViewModel.DeviceSystemInfo.ToString());
+                MessageCentre.OutputMessage(_deviceExplorerControlViewModel.DeviceSystemInfo.ToString());
 
                 MessageCentre.OutputMessage(string.Empty);
                 MessageCentre.OutputMessage(string.Empty);
                 MessageCentre.OutputMessage("--------------------------------");
                 MessageCentre.OutputMessage("::        Memory Map          ::");
                 MessageCentre.OutputMessage("--------------------------------");
-                MessageCentre.OutputMessage(DeviceExplorerViewModel.DeviceMemoryMap.ToString());
+                MessageCentre.OutputMessage(_deviceExplorerControlViewModel.DeviceMemoryMap.ToString());
 
                 MessageCentre.OutputMessage(string.Empty);
                 MessageCentre.OutputMessage(string.Empty);
                 MessageCentre.OutputMessage("-----------------------------------------------------------");
                 MessageCentre.OutputMessage("::                   Flash Sector Map                    ::");
                 MessageCentre.OutputMessage("-----------------------------------------------------------");
-                MessageCentre.OutputMessage(DeviceExplorerViewModel.DeviceFlashSectorMap.ToString());
+                MessageCentre.OutputMessage(_deviceExplorerControlViewModel.DeviceFlashSectorMap.ToString());
 
                 MessageCentre.OutputMessage(string.Empty);
                 MessageCentre.OutputMessage(string.Empty);
                 MessageCentre.OutputMessage("Deployment Map");
-                MessageCentre.OutputMessage(DeviceExplorerViewModel.DeviceDeploymentMap.ToString());
+                MessageCentre.OutputMessage(_deviceExplorerControlViewModel.DeviceDeploymentMap.ToString());
                 MessageCentre.OutputMessage(string.Empty);
 
             }
@@ -410,7 +396,7 @@ namespace nanoFramework.Tools.VisualStudio.Extension
             // yield to give the UI thread a chance to respond to user input
             await Task.Yield();
 
-            MessageCentre.StartProgressMessage($"Erasing {DeviceExplorerViewModel.SelectedDevice.Description} deployment area...");
+            MessageCentre.StartProgressMessage($"Erasing {_deviceExplorerControlViewModel.SelectedDevice.Description} deployment area...");
 
             try
             {
@@ -418,28 +404,28 @@ namespace nanoFramework.Tools.VisualStudio.Extension
                 (sender as MenuCommand).Enabled = false;
 
                 // make sure this device is showing as selected in Device Explorer tree view
-                DeviceExplorerViewModel.ForceNanoDeviceSelection();
+                _deviceExplorerControlViewModel.ForceNanoDeviceSelection();
 
                 // check if debugger engine exists
-                if (NanoDeviceCommService.Device.DebugEngine == null)
+                if (_nanoDeviceCommService.Device.DebugEngine == null)
                 {
-                    NanoDeviceCommService.Device.CreateDebugEngine();
+                    _nanoDeviceCommService.Device.CreateDebugEngine();
                 }
 
                 // connect to the device
-                if (await NanoDeviceCommService.Device.DebugEngine.ConnectAsync(5000))
+                if (await _nanoDeviceCommService.Device.DebugEngine.ConnectAsync(5000))
                 {
                     try
                     {
-                        if (await NanoDeviceCommService.Device.EraseAsync(Debugger.EraseOptions.Deployment, CancellationToken.None))
+                        if (await _nanoDeviceCommService.Device.EraseAsync(Debugger.EraseOptions.Deployment, CancellationToken.None))
                         {
-                            MessageCentre.OutputMessage($"{DeviceExplorerViewModel.SelectedDevice.Description} deployment area erased.");
+                            MessageCentre.OutputMessage($"{_deviceExplorerControlViewModel.SelectedDevice.Description} deployment area erased.");
 
                             // reset the hash for the connected device so the deployment information can be refreshed, if and when requested
-                            DeviceExplorerViewModel.LastDeviceConnectedHash = 0;
+                            _deviceExplorerControlViewModel.LastDeviceConnectedHash = 0;
 
                             // reboot device
-                            NanoDeviceCommService.Device.DebugEngine.RebootDevice(Debugger.RebootOptions.ClrOnly | Debugger.RebootOptions.NoShutdown);
+                            _nanoDeviceCommService.Device.DebugEngine.RebootDevice(Debugger.RebootOptions.ClrOnly | Debugger.RebootOptions.NoShutdown);
 
                             // yield to give the UI thread a chance to respond to user input
                             await Task.Yield();
@@ -447,13 +433,13 @@ namespace nanoFramework.Tools.VisualStudio.Extension
                         else
                         {
                             // report issue to user
-                            MessageCentre.OutputMessage($"Error erasing {DeviceExplorerViewModel.SelectedDevice.Description} deployment area.");
+                            MessageCentre.OutputMessage($"Error erasing {_deviceExplorerControlViewModel.SelectedDevice.Description} deployment area.");
                         }
                     }
                     catch
                     {
                         // report issue to user
-                        MessageCentre.OutputMessage($"Error erasing {DeviceExplorerViewModel.SelectedDevice.Description} deployment area.");
+                        MessageCentre.OutputMessage($"Error erasing {_deviceExplorerControlViewModel.SelectedDevice.Description} deployment area.");
 
                         return;
                     }
@@ -461,9 +447,9 @@ namespace nanoFramework.Tools.VisualStudio.Extension
                 else
                 {
                     // reset property to force that device capabilities are retrieved on next connection
-                    DeviceExplorerViewModel.LastDeviceConnectedHash = 0;
+                    _deviceExplorerControlViewModel.LastDeviceConnectedHash = 0;
 
-                    MessageCentre.OutputMessage($"{DeviceExplorerViewModel.SelectedDevice.Description} is not responding, please reboot the device.");
+                    MessageCentre.OutputMessage($"{_deviceExplorerControlViewModel.SelectedDevice.Description} is not responding, please reboot the device.");
 
                     return;
                 }
@@ -501,41 +487,41 @@ namespace nanoFramework.Tools.VisualStudio.Extension
                 (sender as MenuCommand).Enabled = false;
 
                 // make sure this device is showing as selected in Device Explorer tree view
-                DeviceExplorerViewModel.ForceNanoDeviceSelection();
+                _deviceExplorerControlViewModel.ForceNanoDeviceSelection();
 
                 // check if debugger engine exists
-                if (NanoDeviceCommService.Device.DebugEngine == null)
+                if (_nanoDeviceCommService.Device.DebugEngine == null)
                 {
-                    NanoDeviceCommService.Device.CreateDebugEngine();
+                    _nanoDeviceCommService.Device.CreateDebugEngine();
                 }
 
                 // connect to the device
-                if (await NanoDeviceCommService.Device.DebugEngine.ConnectAsync(5000))
+                if (await _nanoDeviceCommService.Device.DebugEngine.ConnectAsync(5000))
                 {
                     try
                     {
                         // for now, just get the 1st network configuration, if exists
-                        var networkConfigurations = NanoDeviceCommService.Device.DebugEngine.GetAllNetworkConfigurations();
+                        var networkConfigurations = _nanoDeviceCommService.Device.DebugEngine.GetAllNetworkConfigurations();
 
                         if (networkConfigurations.Count > 0)
                         {
-                            DeviceExplorerViewModel.DeviceNetworkConfiguration = networkConfigurations[0];
+                            _deviceExplorerControlViewModel.DeviceNetworkConfiguration = networkConfigurations[0];
                         }
                         else
                         {
-                            DeviceExplorerViewModel.DeviceNetworkConfiguration = new Debugger.DeviceConfiguration.NetworkConfigurationProperties();
+                            _deviceExplorerControlViewModel.DeviceNetworkConfiguration = new Debugger.DeviceConfiguration.NetworkConfigurationProperties();
                         }
 
                         // for now, just get the 1st Wi-Fi configuration, if exists
-                        var wirellesConfigurations = NanoDeviceCommService.Device.DebugEngine.GetAllWireless80211Configurations();
+                        var wirellesConfigurations = _nanoDeviceCommService.Device.DebugEngine.GetAllWireless80211Configurations();
 
                         if (wirellesConfigurations.Count > 0)
                         {
-                            DeviceExplorerViewModel.DeviceWireless80211Configuration = wirellesConfigurations[0];
+                            _deviceExplorerControlViewModel.DeviceWireless80211Configuration = wirellesConfigurations[0];
                         }
                         else
                         {
-                            DeviceExplorerViewModel.DeviceWireless80211Configuration = new Debugger.DeviceConfiguration.Wireless80211ConfigurationProperties();
+                            _deviceExplorerControlViewModel.DeviceWireless80211Configuration = new Debugger.DeviceConfiguration.Wireless80211ConfigurationProperties();
                         }
 
                         // yield to give the UI thread a chance to respond to user input
@@ -550,14 +536,14 @@ namespace nanoFramework.Tools.VisualStudio.Extension
                     catch
                     {
                         // report issue to user
-                        MessageCentre.OutputMessage($"Error reading {DeviceExplorerViewModel.SelectedDevice.Description} configurations.");
+                        MessageCentre.OutputMessage($"Error reading {_deviceExplorerControlViewModel.SelectedDevice.Description} configurations.");
 
                         return;
                     }
                 }
                 else
                 {
-                    MessageCentre.OutputMessage($"{DeviceExplorerViewModel.SelectedDevice.Description} is not responding, please reboot the device.");
+                    MessageCentre.OutputMessage($"{_deviceExplorerControlViewModel.SelectedDevice.Description} is not responding, please reboot the device.");
 
                     return;
                 }
@@ -597,25 +583,25 @@ namespace nanoFramework.Tools.VisualStudio.Extension
                 (sender as MenuCommand).Enabled = false;
 
                 // make sure this device is showing as selected in Device Explorer tree view
-                DeviceExplorerViewModel.ForceNanoDeviceSelection();
+                _deviceExplorerControlViewModel.ForceNanoDeviceSelection();
 
                 // check if debugger engine exists
-                if (NanoDeviceCommService.Device.DebugEngine == null)
+                if (_nanoDeviceCommService.Device.DebugEngine == null)
                 {
-                    NanoDeviceCommService.Device.CreateDebugEngine();
+                    _nanoDeviceCommService.Device.CreateDebugEngine();
                 }
 
                 // connect to the device
-                if (await NanoDeviceCommService.Device.DebugEngine.ConnectAsync(5000))
+                if (await _nanoDeviceCommService.Device.DebugEngine.ConnectAsync(5000))
                 {
                     try
                     {
-                        NanoDeviceCommService.Device.DebugEngine.RebootDevice(Debugger.RebootOptions.NormalReboot);
+                        _nanoDeviceCommService.Device.DebugEngine.RebootDevice(Debugger.RebootOptions.NormalReboot);
 
-                        MessageCentre.OutputMessage($"Sent reboot command to {DeviceExplorerViewModel.SelectedDevice.Description}.");
+                        MessageCentre.OutputMessage($"Sent reboot command to {_deviceExplorerControlViewModel.SelectedDevice.Description}.");
 
                         // reset the hash for the connected device so the deployment information can be refreshed, if and when requested
-                        DeviceExplorerViewModel.LastDeviceConnectedHash = 0;
+                        _deviceExplorerControlViewModel.LastDeviceConnectedHash = 0;
 
                         // yield to give the UI thread a chance to respond to user input
                         await Task.Yield();
@@ -623,7 +609,7 @@ namespace nanoFramework.Tools.VisualStudio.Extension
                     catch
                     {
                         // report issue to user
-                        MessageCentre.OutputMessage($"Error sending reboot command to {DeviceExplorerViewModel.SelectedDevice.Description}.");
+                        MessageCentre.OutputMessage($"Error sending reboot command to {_deviceExplorerControlViewModel.SelectedDevice.Description}.");
 
                         return;
                     }
@@ -631,9 +617,9 @@ namespace nanoFramework.Tools.VisualStudio.Extension
                 else
                 {
                     // reset property to force that device capabilities are retrieved on next connection
-                    DeviceExplorerViewModel.LastDeviceConnectedHash = 0;
+                    _deviceExplorerControlViewModel.LastDeviceConnectedHash = 0;
 
-                    MessageCentre.OutputMessage($"{DeviceExplorerViewModel.SelectedDevice.Description} is not responding, please reboot the device.");
+                    MessageCentre.OutputMessage($"{_deviceExplorerControlViewModel.SelectedDevice.Description} is not responding, please reboot the device.");
 
                     return;
                 }
@@ -674,13 +660,13 @@ namespace nanoFramework.Tools.VisualStudio.Extension
 
         private void SelectedNanoDeviceHasChangedHandler()
         {
-            if (DeviceExplorerViewModel.SelectedDevice != null)
+            if (_deviceExplorerControlViewModel.SelectedDevice != null)
             {
-                NanoDeviceCommService.SelectDevice(DeviceExplorerViewModel.SelectedDevice.Description);
+                _nanoDeviceCommService.SelectDevice(_deviceExplorerControlViewModel.SelectedDevice.Description);
             }
             else
             {
-                NanoDeviceCommService.SelectDevice(null);
+                _nanoDeviceCommService.SelectDevice(null);
             }
 
             // update toolbar 
@@ -708,10 +694,10 @@ namespace nanoFramework.Tools.VisualStudio.Extension
             Microsoft.Assumes.Present(menuCommandService);
 
             // are there any devices available
-            if (DeviceExplorerViewModel.AvailableDevices.Count > 0)
+            if (_deviceExplorerControlViewModel.AvailableDevices.Count > 0)
             {
                 // any device selected?
-                if (DeviceExplorerViewModel.SelectedDevice != null)
+                if (_deviceExplorerControlViewModel.SelectedDevice != null)
                 {
                     // there is a device selected
                     // enable ping button

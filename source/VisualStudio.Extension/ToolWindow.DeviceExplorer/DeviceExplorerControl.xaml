@@ -18,7 +18,7 @@
              x:Name="DeviceExplorer">
     <UserControl.DataContext>
         <!--It's OK to use this static resource this way because it has been added programatically in the VS package constructor.-->
-        <Binding Mode="OneWay" Source="{StaticResource DeviceExplorerViewModel}"/>
+        <Binding Mode="OneWay" Source="{StaticResource DeviceExplorerControlViewModel}"/>
     </UserControl.DataContext>
 
     <AdornerDecorator>

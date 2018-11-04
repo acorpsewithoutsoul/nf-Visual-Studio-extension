@@ -134,8 +134,8 @@
       <DependentUpon>ResourceStrings.resx</DependentUpon>
     </Compile>
     <Compile Include="ResXFileCodeGenerator\NFResXFileCodeGenerator.cs" />
-    <Compile Include="ToolWindow.DeviceExplorer\DeviceExplorer.cs" />
-    <Compile Include="ToolWindow.DeviceExplorer\DeviceExplorerCommand.cs" />
+    <Compile Include="ToolWindow.DeviceExplorer\DeviceExplorerToolbar.cs" />
+    <Compile Include="ToolWindow.DeviceExplorer\DeviceExplorerWindowPane.cs" />
     <Compile Include="ToolWindow.DeviceExplorer\NetworkConfigurationDialog.xaml.cs">
       <DependentUpon>NetworkConfigurationDialog.xaml</DependentUpon>
     </Compile>
@@ -143,11 +143,6 @@
       <DependentUpon>DeviceExplorerControl.xaml</DependentUpon>
     </Compile>
     <Compile Include="NanoFrameworkPackage.cs" />
-    <Compile Include="ToolWindow.DeviceExplorer\Models\ConnectionState.cs" />
-    <Compile Include="ToolWindow.DeviceExplorer\Models\PingConnectionResult.cs" />
-    <Compile Include="ToolWindow.DeviceExplorer\Services\NanoFrameworkService\INFDebugClientBaseService.cs" />
-    <Compile Include="ToolWindow.DeviceExplorer\Services\NanoFrameworkService\INFSerialDebugClientService.cs" />
-    <Compile Include="ToolWindow.DeviceExplorer\Services\NanoFrameworkService\NFSerialDebugClientService.cs" />
     <Compile Include="ToolWindow.DeviceExplorer\ViewModel\DesignDataService.cs" />
     <Compile Include="ToolWindow.DeviceExplorer\ViewModel\DeviceExplorerViewModel.cs" />
     <Compile Include="ToolWindow.DeviceExplorer\ViewModel\IDataService.cs" />

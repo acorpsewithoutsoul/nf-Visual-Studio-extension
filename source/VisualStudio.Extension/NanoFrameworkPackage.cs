@@ -40,7 +40,7 @@ namespace nanoFramework.Tools.VisualStudio.Extension
     // menu for ToolWindow
     [ProvideMenuResource("Menus.ctmenu", 1)]
     // declaration of Device Explorer ToolWindow that (as default) will show tabbed in Solution Explorer
-    [ProvideToolWindow(typeof(DeviceExplorer), Style = VsDockStyle.Tabbed, Window = "3ae79031-e1bc-11d0-8f78-00a0c9110057")]
+    [ProvideToolWindow(typeof(DeviceExplorerWindowPane), Style = VsDockStyle.Tabbed, Window = "3ae79031-e1bc-11d0-8f78-00a0c9110057")]
     // register nanoDevice communication service
     [ProvideService((typeof(NanoDeviceCommService)), IsAsyncQueryable = true)]
     [Guid(NanoFrameworkPackage.PackageGuid)]
@@ -69,7 +69,7 @@ namespace nanoFramework.Tools.VisualStudio.Extension
         /// <summary>
         /// View model locator 
         /// </summary>
-        static internal DeviceExplorerViewModel DeviceExplorerViewModel { get; private set; }
+        static internal DeviceExplorerControlViewModel DeviceExplorerControlViewModel { get; private set; }
 
         /// <summary>
         /// Path for nanoFramework Extension directory
@@ -178,28 +178,26 @@ namespace nanoFramework.Tools.VisualStudio.Extension
             // Need to add the View model Locator to the application resource dictionary programmatically 
             // because at the extension level we don't have 'XAML' access to it
             // try to find if the view model locator is already in the app resources dictionary
-            if (System.Windows.Application.Current.TryFindResource("DeviceExplorerViewModel") == null)
+            if (System.Windows.Application.Current.TryFindResource("DeviceExplorerControlViewModel") == null)
             {
                 // instantiate the view model locator...
-                DeviceExplorerViewModel = new DeviceExplorerViewModel();
+                DeviceExplorerControlViewModel = new DeviceExplorerControlViewModel();
 
                 // ... and add it there
-                System.Windows.Application.Current.Resources.Add("DeviceExplorerViewModel", DeviceExplorerViewModel);
+                System.Windows.Application.Current.Resources.Add("DeviceExplorerControlViewModel", DeviceExplorerControlViewModel);
             }
-
-            DeviceExplorerViewModel.Package = this;
 
             await MessageCentre.InitializeAsync(this, "nanoFramework Extension");
 
-            await DeviceExplorerCommand.InitializeAsync(this, DeviceExplorerViewModel, await GetServiceAsync(typeof(NanoDeviceCommService)) as INanoDeviceCommService);
-            DeployProvider.Initialize(this, DeviceExplorerViewModel);
+            await DeviceExplorerToolbar.InitializeAsync(this, DeviceExplorerControlViewModel, await GetServiceAsync(typeof(NanoDeviceCommService)) as INanoDeviceCommService);
+            DeployProvider.Initialize(this, DeviceExplorerControlViewModel);
 
             // Enable debugger UI context
             UIContext.FromUIContextGuid(CorDebug.EngineGuid).IsActive = true;
 
             await TaskScheduler.Default;
 
-            DeviceExplorerViewModel.NanoDeviceCommService = await GetServiceAsync(typeof(NanoDeviceCommService)) as INanoDeviceCommService;
+            DeviceExplorerControlViewModel.NanoDeviceCommService = await GetServiceAsync(typeof(NanoDeviceCommService)) as INanoDeviceCommService;
 
             OutputWelcomeMessage();
 
@@ -221,7 +219,7 @@ namespace nanoFramework.Tools.VisualStudio.Extension
         {
             ThreadPool.QueueUserWorkItem(delegate 
             {
-                Thread.Sleep(5000);
+                Thread.Sleep(3000);
                 // loaded 
                 MessageCentre.OutputMessage($"** nanoFramework extension v{NanoFrameworkExtensionVersion.ToString()} loaded **");
 
