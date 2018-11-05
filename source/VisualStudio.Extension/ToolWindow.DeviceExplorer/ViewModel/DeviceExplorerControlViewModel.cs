@@ -47,11 +47,23 @@ namespace nanoFramework.Tools.VisualStudio.Extension.ToolWindow.ViewModel
 #pragma warning disable 67
         public event PropertyChangingEventHandler PropertyChanging;
 #pragma warning restore 67
+        public event Action ViewLoaded;
 
         /// <summary>
         /// Sets if Device Explorer should auto-select a device when there is only a single one in the available list.
         /// </summary>
         public bool AutoSelect { get; set; } = true;
+
+        private bool _isViewLoaded;
+        public bool IsViewLoaded
+        {
+            get { return _isViewLoaded; }
+            set
+            {
+                _isViewLoaded = value;
+                ViewLoaded?.Invoke();
+            }
+        }
 
         private INanoDeviceCommService nanoDeviceCommService;
         public INanoDeviceCommService NanoDeviceCommService

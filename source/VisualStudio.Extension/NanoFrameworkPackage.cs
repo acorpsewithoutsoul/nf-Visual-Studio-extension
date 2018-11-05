@@ -175,7 +175,7 @@ namespace nanoFramework.Tools.VisualStudio.Extension
 
             AddService(typeof(NanoDeviceCommService), CreateNanoDeviceCommServiceAsync);
 
-            // Need to add the View model Locator to the application resource dictionary programmatically 
+            // Need to add the DeviceExplorerControlViewModel to the application resource dictionary programmatically 
             // because at the extension level we don't have 'XAML' access to it
             // try to find if the view model locator is already in the app resources dictionary
             if (System.Windows.Application.Current.TryFindResource("DeviceExplorerControlViewModel") == null)
@@ -190,6 +190,7 @@ namespace nanoFramework.Tools.VisualStudio.Extension
             await MessageCentre.InitializeAsync(this, "nanoFramework Extension");
 
             await DeviceExplorerToolbar.InitializeAsync(this, DeviceExplorerControlViewModel, await GetServiceAsync(typeof(NanoDeviceCommService)) as INanoDeviceCommService);
+            await DeviceExplorerVisualStudioMenuBarCommand.InitializeAsync(this);
             DeployProvider.Initialize(this, DeviceExplorerControlViewModel);
 
             // Enable debugger UI context
@@ -204,7 +205,7 @@ namespace nanoFramework.Tools.VisualStudio.Extension
             await base.InitializeAsync(cancellationToken, progress);
         }
 
-        public async Task<object> CreateNanoDeviceCommServiceAsync(IAsyncServiceContainer container, CancellationToken cancellationToken, Type serviceType)
+        private async Task<object> CreateNanoDeviceCommServiceAsync(IAsyncServiceContainer container, CancellationToken cancellationToken, Type serviceType)
         {
             NanoDeviceCommService service = null;
 

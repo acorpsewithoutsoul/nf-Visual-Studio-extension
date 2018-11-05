@@ -36,7 +36,7 @@ namespace nanoFramework.Tools.VisualStudio.Extension
         private void DeviceExplorerControl_Loaded(object sender, System.Windows.RoutedEventArgs e)
         {
             // update the status of the control button
-            DeviceExplorerToolbar.UpdateShowInternalErrorsButton(NanoFrameworkPackage.OptionShowInternalErrors);
+            DeviceExplorerControlViewModel.IsViewLoaded = true;
         }
 
         private void Hyperlink_RequestNavigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)

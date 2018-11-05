@@ -41,7 +41,7 @@ namespace nanoFramework.Tools.VisualStudio.Extension
         /// <summary>
         /// Gets the service provider from the owner package.
         /// </summary>
-        private IServiceProvider ServiceProvider { get { return _package; } }
+        private IServiceProvider ServiceProvider => _package;
 
         INanoDeviceCommService NanoDeviceCommService { get { return ServiceProvider.GetService(typeof(NanoDeviceCommService)) as INanoDeviceCommService; } }
 

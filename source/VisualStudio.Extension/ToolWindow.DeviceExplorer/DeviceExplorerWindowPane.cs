@@ -12,7 +12,8 @@ namespace nanoFramework.Tools.VisualStudio.Extension
     using Microsoft.VisualStudio.Shell.Interop;
 
     /// <summary>
-    /// This class implements the tool window exposed by this package and hosts a user control.
+    /// This class implements the tool window exposed by this package and hosts the 
+    /// Device Explorer Toolbar and Device Explorer Control.
     /// </summary>
     /// <remarks>
     /// In Visual Studio tool windows are composed of a frame (implemented by the shell) and a pane,
@@ -25,10 +26,6 @@ namespace nanoFramework.Tools.VisualStudio.Extension
     [Guid("65ff0124-880b-4bf4-9441-08a10b4e4c06")]
     public class DeviceExplorerWindowPane : ToolWindowPane
     {
-
-        internal DeviceExplorerControl control;
-
-
         /// <summary>
         /// Initializes a new instance of the <see cref="DeviceExplorerWindowPane"/> class.
         /// </summary>
@@ -36,17 +33,15 @@ namespace nanoFramework.Tools.VisualStudio.Extension
         {
             Caption = "Device Explorer - Home";
 
+            // set the toolbar for this control
+            ToolBar = DeviceExplorerToolbar.CommandID;
+            ToolBarLocation = (int)VSTWT_LOCATION.VSTWT_TOP;
+
             // This is the user control hosted by the tool window; Note that, even if this class implements IDisposable,
             // we are not calling Dispose on this object. This is because ToolWindowPane calls Dispose on
             // the object returned by the Content property.
-            control = new DeviceExplorerControl();
-            base.Content = control;
-
+            base.Content = new DeviceExplorerControl();
             BitmapImageMoniker = NanoFrameworkMonikers.NanoFramework;
-
-            // set the toolbar for this control
-            ToolBar = new CommandID(new Guid(DeviceExplorerToolbar.guidDeviceExplorerCmdSet), DeviceExplorerToolbar.DeviceExplorerToolbarID);
-            ToolBarLocation = (int)VSTWT_LOCATION.VSTWT_TOP;
         }
     }
 }

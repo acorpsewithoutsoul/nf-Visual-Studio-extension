@@ -5,7 +5,6 @@
 
 using GalaSoft.MvvmLight.Messaging;
 using Microsoft.VisualStudio.Shell;
-using Microsoft.VisualStudio.Shell.Interop;
 using nanoFramework.Tools.Debugger.Extensions;
 using nanoFramework.Tools.VisualStudio.Extension.ToolWindow.ViewModel;
 using System;
@@ -15,26 +14,19 @@ using System.Threading;
 using System.Windows.Forms;
 using Task = System.Threading.Tasks.Task;
 
+
+
 namespace nanoFramework.Tools.VisualStudio.Extension
 {
+
+    //TODO separate the ViewModel from the View
     /// <summary>
-    /// Command handler
+    /// The toolbar for the Device Explorer Window Pane.
+    /// Commands in this toolbar act upon the device selected in the Device Explorer Control.
     /// </summary>
     internal sealed class DeviceExplorerToolbar
     {
-        /// <summary>
-        /// Command ID.
-        /// </summary>
-        public const int CommandId = 0x0100;
-
-        /// <summary>
-        /// Command menu group (command set GUID).
-        /// </summary>
-        public static readonly Guid CommandSet = new Guid("c975c4ec-f229-45dd-b681-e42815641675");
-
         private DeviceExplorerControlViewModel _deviceExplorerControlViewModel;
-
-        private static OleMenuCommandService _commandService;
 
         /// <summary>
         /// VS Package that provides this command, not null.
@@ -42,23 +34,31 @@ namespace nanoFramework.Tools.VisualStudio.Extension
         private readonly Package _package;
 
         // command set Guids
-        public const string guidDeviceExplorerCmdSet = "DF641D51-1E8C-48E4-B549-CC6BCA9BDE19";  // this GUID is coming from the .vsct file  
+        private static readonly Guid menuGroupID = new Guid("DF641D51-1E8C-48E4-B549-CC6BCA9BDE19");
+        private const int DeviceExplorerToolbarID = 0x1000;
+        public static CommandID CommandID => new CommandID(menuGroupID, DeviceExplorerToolbarID);
 
-        public const int DeviceExplorerToolbarID = 0x1000;
 
-        // toolbar commands
-        public const int PingDeviceCommandID = 0x0210;
-        public const int DeviceCapabilitiesID = 0x0220;
-        public const int DeviceEraseID = 0x0230;
-        public const int RebootID = 0x0240;
-        public const int NetworkConfigID = 0x0250;
+        // toolbar command IDs
+        private const int PingDeviceCommandID = 0x0210;
+        private const int DeviceCapabilitiesID = 0x0220;
+        private const int DeviceEraseID = 0x0230;
+        private const int RebootID = 0x0240;
+        private const int NetworkConfigID = 0x0250;
 
         // 2nd group
-        public const int ShowInternalErrorsCommandID = 0x0300;
+        private const int ShowInternalErrorsCommandID = 0x0300;
 
+        // toolbar command Menu Commands 
+        private MenuCommand _pingMenuCommand;
+        private MenuCommand _capabilitiesMenuCommand;
+        private MenuCommand _eraseMenuCommand;
+        private MenuCommand _rebootMenuCommand;
+        private MenuCommand _networkConfigMenuCommand;
+        private MenuCommand _showInternalErrorsCommand;
 
         private INanoDeviceCommService _nanoDeviceCommService;
-        private static DeviceExplorerToolbar s_instance;
+        public static DeviceExplorerToolbar Instance { get; private set; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DeviceExplorerToolbar"/> class.
@@ -67,26 +67,13 @@ namespace nanoFramework.Tools.VisualStudio.Extension
         /// <param name="package">Owner package, not null.</param>
         private DeviceExplorerToolbar(Package package)
         {
-            this._package = package ?? throw new ArgumentNullException("Package can't be null.");
-
-            _commandService = ServiceProvider.GetService(typeof(IMenuCommandService)) as OleMenuCommandService;
-            Microsoft.Assumes.Present(_commandService);
-
-            var menuCommandID = new CommandID(CommandSet, CommandId);
-            var menuItem = new MenuCommand(ShowToolWindow, menuCommandID);
-            _commandService.AddCommand(menuItem);
+           _package = package ?? throw new ArgumentNullException("Package can't be null.");
         }
 
         /// <summary>
         /// Gets the service provider from the owner package.
         /// </summary>
-        private System.IServiceProvider ServiceProvider
-        {
-            get
-            {
-                return _package;
-            }
-        }
+        private System.IServiceProvider ServiceProvider => _package;
 
         /// <summary>
         /// Initializes the singleton instance of the command.
@@ -94,19 +81,20 @@ namespace nanoFramework.Tools.VisualStudio.Extension
         /// <param name="package">Owner package, not null.</param>
         public static async Task InitializeAsync(AsyncPackage package, DeviceExplorerControlViewModel deviceExplorerControlViewModel, INanoDeviceCommService nanoDeviceCommService)
         {
-            s_instance = new DeviceExplorerToolbar(package);
+            Instance = new DeviceExplorerToolbar(package);
 
-            s_instance._deviceExplorerControlViewModel = deviceExplorerControlViewModel;
-            s_instance._nanoDeviceCommService = nanoDeviceCommService;
+            Instance._deviceExplorerControlViewModel = deviceExplorerControlViewModel;
+            Instance._nanoDeviceCommService = nanoDeviceCommService;
 
             // need to switch to the main thread to initialize the command handlers
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
-            s_instance.CreateToolbarHandlers();
+            Instance.CreateToolbarHandlers();
+            Instance._deviceExplorerControlViewModel.ViewLoaded += Instance.DeviceExplorerControlViewModel_ViewLoaded;
 
             // setup message listeners to be notified of events occurring in the View Model
-            Messenger.Default.Register<NotificationMessage>(s_instance, DeviceExplorerControlViewModel.MessagingTokens.SelectedNanoDeviceHasChanged, (message) => s_instance.SelectedNanoDeviceHasChangedHandler());
-            Messenger.Default.Register<NotificationMessage>(s_instance, DeviceExplorerControlViewModel.MessagingTokens.NanoDevicesCollectionHasChanged, (message) => s_instance.NanoDevicesCollectionChangedHandler());
+            Messenger.Default.Register<NotificationMessage>(Instance, DeviceExplorerControlViewModel.MessagingTokens.SelectedNanoDeviceHasChanged, (message) => Instance.SelectedNanoDeviceHasChangedHandler());
+            Messenger.Default.Register<NotificationMessage>(Instance, DeviceExplorerControlViewModel.MessagingTokens.NanoDevicesCollectionHasChanged, (message) => Instance.NanoDevicesCollectionChangedHandler());
         }
 
         private void CreateToolbarHandlers()
@@ -115,76 +103,32 @@ namespace nanoFramework.Tools.VisualStudio.Extension
             var menuCommandService = ServiceProvider.GetService(typeof(IMenuCommandService)) as OleMenuCommandService;
             Microsoft.Assumes.Present(menuCommandService);
 
-            CommandID toolbarButtonCommandId;
-            MenuCommand menuItem;
+            _pingMenuCommand = GenerateToolbarMenuCommand(PingDeviceCommandHandler, PingDeviceCommandID, false, true);
+            menuCommandService.AddCommand(_pingMenuCommand);
 
-            // PingCommand
-            toolbarButtonCommandId = GenerateCommandID(PingDeviceCommandID);
-            menuItem = new MenuCommand(PingDeviceCommandHandler, toolbarButtonCommandId);
-            menuItem.Enabled = false;
-            menuItem.Visible = true;
-            menuCommandService.AddCommand(menuItem);
+            _capabilitiesMenuCommand = GenerateToolbarMenuCommand(DeviceCapabilitiesCommandHandler, DeviceCapabilitiesID, false, true);
+            menuCommandService.AddCommand(_capabilitiesMenuCommand);
 
-            // DeviceCapabilities
-            toolbarButtonCommandId = GenerateCommandID(DeviceCapabilitiesID);
-            menuItem = new MenuCommand(DeviceCapabilitiesCommandHandler, toolbarButtonCommandId);
-            menuItem.Enabled = false;
-            menuItem.Visible = true;
-            menuCommandService.AddCommand(menuItem);
+            _eraseMenuCommand = GenerateToolbarMenuCommand(DeviceEraseCommandHandler, DeviceEraseID, false, true);
+            menuCommandService.AddCommand(_eraseMenuCommand);
 
-            // DeviceErase
-            toolbarButtonCommandId = GenerateCommandID(DeviceEraseID);
-            menuItem = new MenuCommand(DeviceEraseCommandHandler, toolbarButtonCommandId);
-            menuItem.Enabled = false;
-            menuItem.Visible = true;
-            menuCommandService.AddCommand(menuItem);
+            _rebootMenuCommand = GenerateToolbarMenuCommand(RebootCommandHandler, RebootID, false, true);
+            menuCommandService.AddCommand(_rebootMenuCommand);
 
-            // Reboot
-            toolbarButtonCommandId = GenerateCommandID(RebootID);
-            menuItem = new MenuCommand(RebootCommandHandler, toolbarButtonCommandId);
-            menuItem.Enabled = false;
-            menuItem.Visible = true;
-            menuCommandService.AddCommand(menuItem);
+            _networkConfigMenuCommand = GenerateToolbarMenuCommand(NetworkConfigCommandHandler, NetworkConfigID, false, true);
+            menuCommandService.AddCommand(_networkConfigMenuCommand);
 
-            // NetworkConfig
-            toolbarButtonCommandId = GenerateCommandID(NetworkConfigID);
-            menuItem = new MenuCommand(NetworkConfigCommandHandler, toolbarButtonCommandId);
-            menuItem.Enabled = false;
-            menuItem.Visible = true;
-            menuCommandService.AddCommand(menuItem);
-
-            // Show Internal Errors
-            toolbarButtonCommandId = GenerateCommandID(ShowInternalErrorsCommandID);
-            menuItem = new MenuCommand(ShowInternalErrorsCommandHandler, toolbarButtonCommandId);
-            menuItem.Enabled = true;
-            menuItem.Visible = true;
+            _showInternalErrorsCommand = GenerateToolbarMenuCommand(ShowInternalErrorsCommandHandler, ShowInternalErrorsCommandID, false, true);
             // can't set the checked status here because the service provider of the preferences persistence is not available at this time
             // deferring to when the Device Explorer control is loaded
-            //menuItem.Checked = NanoFrameworkPackage.OptionShowInternalErrors;
-            menuCommandService.AddCommand(menuItem);
+            //_showInternalErrorsCommand.Checked = NanoFrameworkPackage.OptionShowInternalErrors;
+            menuCommandService.AddCommand(_showInternalErrorsCommand);
         }
 
-        /// <summary>
-        /// Shows the tool window when the menu item is clicked.
-        /// </summary>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event args.</param>
-        private void ShowToolWindow(object sender, EventArgs e)
+        private void DeviceExplorerControlViewModel_ViewLoaded()
         {
-            ThreadHelper.ThrowIfNotOnUIThread();
-            // Get the instance number 0 of this tool window. This window is single instance so this instance
-            // is actually the only one.
-            // The last flag is set to true so that if the tool window does not exists it will be created.
-            ToolWindowPane window = _package.FindToolWindow(typeof(DeviceExplorerWindowPane), 0, true);
-            if ((window == null) || (window.Frame == null))
-            {
-                throw new NotSupportedException("Cannot create nanoFramework Device Explorer tool window.");
-            }
-
-            IVsWindowFrame windowFrame = (IVsWindowFrame)window.Frame;
-            Microsoft.VisualStudio.ErrorHandler.ThrowOnFailure(windowFrame.Show());
+            _showInternalErrorsCommand.Checked = NanoFrameworkPackage.OptionShowInternalErrors;
         }
-
 
         #region Command button handlers
 
@@ -649,13 +593,6 @@ namespace nanoFramework.Tools.VisualStudio.Extension
 
         #endregion
 
-        public static void UpdateShowInternalErrorsButton(bool value)
-        {
-            var toolbarButtonCommandId = GenerateCommandID(ShowInternalErrorsCommandID);
-            var menuItem = _commandService.FindCommand(toolbarButtonCommandId);
-            menuItem.Checked = value;
-        }
-
         #region MVVM messaging handlers
 
         private void SelectedNanoDeviceHasChangedHandler()
@@ -682,78 +619,65 @@ namespace nanoFramework.Tools.VisualStudio.Extension
         #endregion
 
 
-        #region tool and status bar update and general managers
+        #region Toolbar Updates
 
         private async Task UpdateToolbarButtonsAsync()
         {
             // switch to UI main thread
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
-            // get the menu command service to reach the toolbar commands
-            var menuCommandService = ServiceProvider.GetService(typeof(IMenuCommandService)) as OleMenuCommandService;
-            Microsoft.Assumes.Present(menuCommandService);
-
-            // are there any devices available
-            if (_deviceExplorerControlViewModel.AvailableDevices.Count > 0)
-            {
-                // any device selected?
-                if (_deviceExplorerControlViewModel.SelectedDevice != null)
-                {
-                    // there is a device selected
-                    // enable ping button
-                    menuCommandService.FindCommand(GenerateCommandID(PingDeviceCommandID)).Enabled = true;
-                    // enable capabilities button
-                    menuCommandService.FindCommand(GenerateCommandID(DeviceCapabilitiesID)).Enabled = true;
-                    // enable erase button
-                    menuCommandService.FindCommand(GenerateCommandID(DeviceEraseID)).Enabled = true;
-                    // enable network config button
-                    menuCommandService.FindCommand(GenerateCommandID(NetworkConfigID)).Enabled = true;
-                    // enable reboot button
-                    menuCommandService.FindCommand(GenerateCommandID(RebootID)).Enabled = true;
-                }
-                else
-                {
-                    // no device selected
-                    // disable ping button
-                    menuCommandService.FindCommand(GenerateCommandID(PingDeviceCommandID)).Enabled = false;
-                    // disable capabilities button
-                    menuCommandService.FindCommand(GenerateCommandID(DeviceCapabilitiesID)).Enabled = false;
-                    // disable erase button
-                    menuCommandService.FindCommand(GenerateCommandID(DeviceEraseID)).Enabled = false;
-                    // disable network config button
-                    menuCommandService.FindCommand(GenerateCommandID(NetworkConfigID)).Enabled = false;
-                    // disable reboot button
-                    menuCommandService.FindCommand(GenerateCommandID(RebootID)).Enabled = false;
-                }
-            }
+            if (_deviceExplorerControlViewModel.SelectedDevice != null)
+                EnableToolbarMenuCommands();
             else
-            {
-                // disable ping button
-                menuCommandService.FindCommand(GenerateCommandID(PingDeviceCommandID)).Enabled = false;
-                // disable capabilities button
-                menuCommandService.FindCommand(GenerateCommandID(DeviceCapabilitiesID)).Enabled = false;
-                // disable erase button
-                menuCommandService.FindCommand(GenerateCommandID(DeviceEraseID)).Enabled = false;
-                // disable network config button
-                menuCommandService.FindCommand(GenerateCommandID(NetworkConfigID)).Enabled = false;
-                // disable reboot button
-                menuCommandService.FindCommand(GenerateCommandID(RebootID)).Enabled = false;
-            }
+                DisableToolbarMenuCommands();
+        }
+
+        private void EnableToolbarMenuCommands()
+        {
+            _pingMenuCommand.Enabled = true;
+            _capabilitiesMenuCommand.Enabled = true;
+            _eraseMenuCommand.Enabled = true;
+            _rebootMenuCommand.Enabled = true;
+            _networkConfigMenuCommand.Enabled = true;
+        }
+
+        private void DisableToolbarMenuCommands()
+        {
+            _pingMenuCommand.Enabled = false;
+            _capabilitiesMenuCommand.Enabled = false;
+            _eraseMenuCommand.Enabled = false;
+            _rebootMenuCommand.Enabled = false;
+            _networkConfigMenuCommand.Enabled = false;
         }
 
         #endregion
 
 
+        //TODO move to separate class
         #region helper methods and utilities
 
         /// <summary>
-        /// Generates a <see cref="CommandID"/> specific for the Device Explorer menugroup
+        /// Generates a <see cref="System.ComponentModel.Design.CommandID"/> specific for the Device Explorer menugroup.
         /// </summary>
         /// <param name="commandID">The ID for the command.</param>
         /// <returns></returns>
-        private static CommandID GenerateCommandID(int commandID)
+        private static CommandID GenerateToolbarCommandID(int commandID)
         {
-            return new CommandID(new Guid(guidDeviceExplorerCmdSet), commandID);
+            return new CommandID(menuGroupID, commandID);
+        }
+
+        /// <summary>
+        /// Generates a <see cref="MenuCommand"/> to allow setting menu/toolbar item state and event handling.
+        /// </summary>
+        /// <param name="eventHandler">The event handling callback to be executed.</param>
+        /// <param name="commandID">The ID for the command.</param>
+        /// <param name="enabled">Whether the command will be enabled (clickable).</param>
+        /// <param name="visible">Whether UI element of the command will be visible</param>
+        /// <returns></returns>
+        private static MenuCommand GenerateToolbarMenuCommand(EventHandler eventHandler, int commandID, bool enabled, bool visible)
+        {
+            var toolbarButtonCommandId = GenerateToolbarCommandID(commandID);
+            return new MenuCommand(eventHandler, toolbarButtonCommandId) { Enabled = enabled, Visible = visible };
         }
 
         #endregion
